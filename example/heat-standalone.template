@@ -1,0 +1,122 @@
+heat_template_version: 2013-05-23
+
+description: |
+  A template implementation of a resource that provides a Devstack server
+
+parameters:
+
+  flavor:
+    description: Rackspace Cloud Server flavor
+    type: String 
+    default: "4"
+    constraints:
+    - allowed_values: ["3", "4", "5", "6", "7", "8"]
+      description: must be a valid Rackspace Cloud Server flavor and be large enough to run devstack
+
+  server_name:
+    description: the instance name
+    type: String
+    default: Devstack server
+
+  key_name:
+    description: Nova keypair name for ssh access to the server
+    type: String
+    required: true
+
+  mysql_pass:
+    default: admin
+    hidden: true
+    description: The database admin account password
+    type: String
+    constraints:
+    - length:
+        min: 1
+        max: 41
+      description: must be between 1 and 41 characters
+    - allowed_pattern: "[a-zA-Z0-9]*"
+      description : must contain only alphanumeric characters.
+
+  admin_pass:
+    default: admin
+    hidden: true
+    description: The database admin account password
+    type: String
+    constraints:
+    - length:
+        min: 1
+        max: 41
+      description: must be between 1 and 41 characters
+    - allowed_pattern: "[a-zA-Z0-9]*"
+      description : must contain only alphanumeric characters.
+
+  service_pass:
+    default: admin
+    hidden: true
+    description: The service password which is used by the OpenStack services to authenticate with Keystone.
+    type: String
+    constraints:
+    - length:
+        min: 1
+        max: 41
+      description: must be between 1 and 41 characters
+    - allowed_pattern: "[a-zA-Z0-9]*"
+      description : must contain only alphanumeric characters.
+
+  rabbit_pass:
+    default: admin
+    hidden: true
+    description: The RabbitMQ service admin password
+    type: String
+    constraints:
+    - length:
+        min: 1
+        max: 41
+      description: must be between 1 and 41 characters
+    - allowed_pattern: "[a-zA-Z0-9]*"
+      description : must contain only alphanumeric characters.
+
+resources:
+
+  devstack_server: 
+    type: "Rackspace::Cloud::Server"
+    properties:
+      flavor: { get_param: flavor }
+      image: 23b564c9-c3e6-49f9-bc68-86c7a9ab5018  # Ubuntu 12.04
+      name: { get_param: server_name }
+      key_name: { get_param: key_name }
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash -v
+
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get update
+            apt-get install -y git emacs python-pip build-essential python-dev libxml2-dev libxslt-dev rabbitmq-server mysql-server
+            pip install virtualenv
+            git clone https://github.com/openstack/heat.git
+            cd heat
+            python ./tools/install_venv.py
+            source /root/heat/.venv/bin/activate
+            ./install.sh
+
+            # TODO: Configure RabbitMQ
+            # TODO: Configure MySQL
+            # TODO: Configure Heat
+
+            curl https://raw.github.com/jasondunsmore/heat-shell/master/functions > ~/.bash_profile
+          params:
+            mysql_pass: { get_param: mysql_pass }
+            admin_pass: { get_param: admin_pass }
+            rabbit_pass: { get_param: rabbit_pass }
+            service_pass: { get_param: service_pass }
+            key_name: { get_param: key_name }
+
+outputs:
+  
+  public_ip:
+    value: { get_attr: [ devstack_server, PublicIp ] }
+    description: The public ip address of the server
+
+  private_ip:
+    value: { get_attr: [ devstack_server, PrivateIp ] }
+    description: The private ip address of the server
