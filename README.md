@@ -1,4 +1,5 @@
-heat-templates
-==============
+Heat Example Templates
+======================
 
-Heat templates for Rackspace Public Cloud
+This is an internal repository for example Heat templates. There is little to no structure now, but this should change in the future.
+Pull requests greatly appreciated.
